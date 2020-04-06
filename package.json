@@ -9,6 +9,8 @@
         "build": "webpack"
     },
     "dependencies": {
+        "graphql": "^15.0.0",
+        "graphql-tools": "^4.0.7"
     },
     "repository": {
         "type": "git",

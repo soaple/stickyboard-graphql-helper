@@ -1,3 +1,3 @@
-import GraphQLHelper from './GraphQLHelper';
+const graphqlHelper = require('./graphqlHelper');
 
-export { GraphQLHelper };
+module.exports = graphqlHelper;
