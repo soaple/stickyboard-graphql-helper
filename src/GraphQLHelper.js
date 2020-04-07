@@ -195,7 +195,10 @@ module.exports = schema;
                     where: {
                         id: updatedItem.id,
                     },
-                });
+                })
+                .then(() => {
+                    return sequelizeModel.findByPk(updatedItem.id);
+                })
             };
 
             // Assign function name for each function
