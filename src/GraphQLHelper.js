@@ -1,5 +1,4 @@
-const { buildSchema, GraphQLScalarType } = require('graphql');
-const { makeExecutableSchema } = require('graphql-tools');
+const { GraphQLScalarType } = require('graphql');
 const { Kind } = require('graphql/language');
 
 const SequelizeDataTypeMapper = require('./SequelizeDataTypeMapper');
@@ -39,7 +38,7 @@ function parseModel(sequelizeModel) {
         primaryKey: primaryKey,
         columns: columns,
         columnsRequiredToCreate: columnsRequiredToCreate,
-    }
+    };
 }
 
 const graphqlHelper = {
@@ -130,7 +129,7 @@ module.exports = schema;
     },
 
     generateResolvers: (sequelizeModels) => {
-        const root = {
+        let root = {
             // Custom scalar types
             Date: new GraphQLScalarType({
                 name: 'Date',
@@ -153,11 +152,18 @@ module.exports = schema;
         sequelizeModels.forEach((sequelizeModel) => {
             const modelName = sequelizeModel.name;
 
-            root[`read_${modelName}`] = ({ id }) => {
+            // Generate function names
+            const readFuncName = `read_${modelName}`;
+            const readMultipleFuncName = `read_multiple_${modelName}`;
+            const createFuncName = `create_${modelName}`;
+            const updateFuncName = `update_${modelName}`;
+
+            // Create CRUD functions
+            const readFunction = ({ id }) => {
                 return sequelizeModel.findByPk(id);
             };
 
-            root[`read_multiple_${modelName}`] = (offset, limit) => {
+            const readMultipleFunction = (offset, limit) => {
                 return sequelizeModel.findAndCountAll({
                     where: {},
                     offset: offset,
@@ -165,16 +171,36 @@ module.exports = schema;
                 });
             };
 
-            root[`create_${modelName}`] = (newItem) => {
+            const createFunction = (newItem) => {
                 return sequelizeModel.create(newItem, { returning: true });
             };
 
-            root[`update_${modelName}`] = (updatedItem) => {
+            const updateFunction = (updatedItem) => {
                 return sequelizeModel.update(updatedItem, {
                     where: {
                         id: updatedItem.id,
                     },
                 });
+            };
+
+            // Assign function name for each function
+            Object.defineProperty(readFunction, 'name', { writable: true });
+            Object.defineProperty(readMultipleFunction, 'name', { writable: true });
+            Object.defineProperty(createFunction, 'name', { writable: true });
+            Object.defineProperty(updateFunction, 'name', { writable: true });
+            readFunction.name = readFuncName;
+            readMultipleFunction.name = readMultipleFuncName;
+            createFunction.name = createFuncName;
+            updateFunction.name = updateFuncName;
+
+            root = {
+                ...root,
+
+                // Asssign CRUD functions of the model
+                [readFuncName]: readFunction,
+                [readMultipleFuncName]: readMultipleFunction,
+                [createFuncName]: createFunction,
+                [updateFuncName]: updateFunction,
             };
         });
 
