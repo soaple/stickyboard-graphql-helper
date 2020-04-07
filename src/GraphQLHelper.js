@@ -161,12 +161,10 @@ module.exports = schema;
 
             // Create CRUD functions
             const readFunction = (_, { id }) => {
-                console.log(id);
                 return sequelizeModel.findByPk(id);
             };
 
             const readMultipleFunction = (_, { offset, limit }) => {
-                console.log(offset, limit);
                 return sequelizeModel.findAndCountAll({
                     where: {},
                     offset: offset,
