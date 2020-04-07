@@ -106,9 +106,7 @@ update_${parsedModel.name}(${parsedModel.columns.join(', ')}): ${parsedModel.nam
         });
 
         const schemaFileContent = `
-const { buildSchema } = require('graphql');
-
-const schema = buildSchema(\`
+const schema = \`
     scalar Date
 
     ${models.join('\n')}
@@ -120,7 +118,7 @@ const schema = buildSchema(\`
     type Mutation {
     ${mutations.join('\n')}
     }
-\`);
+\`;
 
 module.exports = schema;
         `.trim();
@@ -129,7 +127,7 @@ module.exports = schema;
     },
 
     generateResolvers: (sequelizeModels) => {
-        let root = {
+        let resolvers = {
             // Custom scalar types
             Date: new GraphQLScalarType({
                 name: 'Date',
@@ -147,6 +145,9 @@ module.exports = schema;
                     return null;
                 },
             }),
+
+            Query: {},
+            Mutation: {},
         };
 
         sequelizeModels.forEach((sequelizeModel) => {
@@ -159,11 +160,13 @@ module.exports = schema;
             const updateFuncName = `update_${modelName}`;
 
             // Create CRUD functions
-            const readFunction = ({ id }) => {
+            const readFunction = (_, { id }) => {
+                console.log(id);
                 return sequelizeModel.findByPk(id);
             };
 
-            const readMultipleFunction = (offset, limit) => {
+            const readMultipleFunction = (_, { offset, limit }) => {
+                console.log(offset, limit);
                 return sequelizeModel.findAndCountAll({
                     where: {},
                     offset: offset,
@@ -171,11 +174,11 @@ module.exports = schema;
                 });
             };
 
-            const createFunction = (newItem) => {
+            const createFunction = (_, newItem) => {
                 return sequelizeModel.create(newItem, { returning: true });
             };
 
-            const updateFunction = (updatedItem) => {
+            const updateFunction = (_, updatedItem) => {
                 return sequelizeModel.update(updatedItem, {
                     where: {
                         id: updatedItem.id,
@@ -185,7 +188,9 @@ module.exports = schema;
 
             // Assign function name for each function
             Object.defineProperty(readFunction, 'name', { writable: true });
-            Object.defineProperty(readMultipleFunction, 'name', { writable: true });
+            Object.defineProperty(readMultipleFunction, 'name', {
+                writable: true,
+            });
             Object.defineProperty(createFunction, 'name', { writable: true });
             Object.defineProperty(updateFunction, 'name', { writable: true });
             readFunction.name = readFuncName;
@@ -193,18 +198,25 @@ module.exports = schema;
             createFunction.name = createFuncName;
             updateFunction.name = updateFuncName;
 
-            root = {
-                ...root,
+            // Asssign Query and Mutation functions of the model
+            resolvers = {
+                ...resolvers,
 
-                // Asssign CRUD functions of the model
-                [readFuncName]: readFunction,
-                [readMultipleFuncName]: readMultipleFunction,
-                [createFuncName]: createFunction,
-                [updateFuncName]: updateFunction,
+                Query: {
+                    ...resolvers.Query,
+                    [readFuncName]: readFunction,
+                    [readMultipleFuncName]: readMultipleFunction,
+                },
+
+                Mutation: {
+                    ...resolvers.Mutation,
+                    [createFuncName]: createFunction,
+                    [updateFuncName]: updateFunction,
+                },
             };
         });
 
-        return root;
+        return resolvers;
     },
 };
 
