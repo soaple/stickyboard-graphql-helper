@@ -53,7 +53,7 @@ function parseModel(sequelizeModel) {
 }
 
 const graphqlHelper = {
-    generateSchema: (sequelizeModel) => {
+    generateSchema: function(sequelizeModel) {
         const parsedModel = parseModel(sequelizeModel);
 
         // prettier-ignore
@@ -87,7 +87,7 @@ module.exports = ${parsedModel.name};
         return schemaFileContent;
     },
 
-    generateBuildSchemaFileContent: (sequelizeModels) => {
+    generateBuildSchemaFileContent: function(sequelizeModels) {
         let models = [];
         let queries = [];
         let mutations = [];
@@ -140,7 +140,63 @@ module.exports = schema;
         return schemaFileContent;
     },
 
-    generateResolvers: (sequelizeModels) => {
+    syncSchema: function(
+        fs,
+        path,
+        graphqlBasePath,
+        sequelizeModels,
+        options = {}
+    ) {
+        const schemaPath = path.resolve(graphqlBasePath, 'schemas');
+
+        // Generate schema files from Sequelize model
+        sequelizeModels.forEach((sequelizeModel) => {
+            const schemaFileName = `${sequelizeModel.name}.js`;
+
+            graphqlBasePath.split('/').reduce((parentDir, childDir) => {
+                const curDir = path.resolve(parentDir, childDir);
+                if (!fs.existsSync(curDir)) {
+                    fs.mkdirSync(curDir);
+                }
+                return curDir;
+            });
+
+            // Create a schema path if it doesn't exist
+            if (!fs.existsSync(schemaPath)) {
+                fs.mkdirSync(schemaPath);
+            }
+
+            const schemaFilePath = path.resolve(schemaPath, schemaFileName);
+
+            if (!fs.existsSync(schemaFilePath) || options.overwrite) {
+                const schema = graphqlHelper.generateSchema(sequelizeModel);
+                fs.writeFileSync(schemaFilePath, schema, function(err) {
+                    if (err) throw err;
+                    console.log(`${schemaFileName} created.`);
+                });
+            }
+        });
+
+        // Generate buildSchema file
+        const buildSchema = graphqlHelper.generateBuildSchemaFileContent(
+            sequelizeModels
+        );
+        const buildSchemaFileName = `schema.js`;
+        const buildSchemaFilePath = path.resolve(
+            schemaPath,
+            buildSchemaFileName
+        );
+        if (!fs.existsSync(buildSchemaFilePath) || options.overwrite) {
+            fs.writeFileSync(buildSchemaFilePath, buildSchema, function(err) {
+                if (err) throw err;
+                console.log(`${buildSchemaFileName} created.`);
+            });
+        }
+
+        return buildSchemaFilePath;
+    },
+
+    generateResolvers: function(sequelizeModels) {
         let resolvers = {
             // Custom scalar types
             Date: new GraphQLScalarType({
@@ -191,14 +247,15 @@ module.exports = schema;
             };
 
             const updateFunction = (_, updatedItem) => {
-                return sequelizeModel.update(updatedItem, {
-                    where: {
-                        id: updatedItem.id,
-                    },
-                })
-                .then(() => {
-                    return sequelizeModel.findByPk(updatedItem.id);
-                })
+                return sequelizeModel
+                    .update(updatedItem, {
+                        where: {
+                            id: updatedItem.id,
+                        },
+                    })
+                    .then(() => {
+                        return sequelizeModel.findByPk(updatedItem.id);
+                    });
             };
 
             // Assign function name for each function
