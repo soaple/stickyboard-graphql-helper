@@ -197,28 +197,8 @@ module.exports = schema;
     },
 
     generateResolvers: function(sequelizeModels) {
-        let resolvers = {
-            // Custom scalar types
-            Date: new GraphQLScalarType({
-                name: 'Date',
-                description: 'Date custom scalar type',
-                parseValue(value) {
-                    return new Date(value); // value from the client
-                },
-                serialize(value) {
-                    return value.getTime(); // value sent to the client
-                },
-                parseLiteral(ast) {
-                    if (ast.kind === Kind.INT) {
-                        return new Date(ast.value); // ast value is always in string format
-                    }
-                    return null;
-                },
-            }),
-
-            Query: {},
-            Mutation: {},
-        };
+        let queryDict = {};
+        let mutationDict = {};
 
         sequelizeModels.forEach((sequelizeModel) => {
             const modelName = sequelizeModel.name;
@@ -271,22 +251,41 @@ module.exports = schema;
             updateFunction.name = updateFuncName;
 
             // Asssign Query and Mutation functions of the model
-            resolvers = {
-                ...resolvers,
+            queryDict = {
+                ...queryDict,
+                [readFuncName]: readFunction,
+                [readMultipleFuncName]: readMultipleFunction,
+            };
 
-                Query: {
-                    ...resolvers.Query,
-                    [readFuncName]: readFunction,
-                    [readMultipleFuncName]: readMultipleFunction,
-                },
-
-                Mutation: {
-                    ...resolvers.Mutation,
-                    [createFuncName]: createFunction,
-                    [updateFuncName]: updateFunction,
-                },
+            mutationDict = {
+                ...mutationDict,
+                [createFuncName]: createFunction,
+                [updateFuncName]: updateFunction,
             };
         });
+
+        const resolvers = {
+            // Custom scalar types
+            Date: new GraphQLScalarType({
+                name: 'Date',
+                description: 'Date custom scalar type',
+                parseValue(value) {
+                    return value.getTime(); // value from the client
+                },
+                serialize(value) {
+                    return new Date(value); // value sent to the client
+                },
+                parseLiteral(ast) {
+                    if (ast.kind === Kind.INT) {
+                        return new Date(ast.value); // ast value is always in string format
+                    }
+                    return null;
+                },
+            }),
+
+            Query: queryDict,
+            Mutation: mutationDict,
+        };
 
         return resolvers;
     },
