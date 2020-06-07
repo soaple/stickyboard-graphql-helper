@@ -73,7 +73,7 @@ const ${parsedModel.name} = {
     \`,
     query: {
         read: 'read_${parsedModel.name}(${parsedModel.primaryKey}): ${parsedModel.name}',
-        readItems: 'read_multiple_${parsedModel.name}(offset: Int!, limit: Int!): ${parsedModel.name}_page',
+        readItems: 'read_multiple_${parsedModel.name}(offset: Int!, limit: Int!, order_column: String, order_method: String): ${parsedModel.name}_page',
     },
     mutation: {
         create: 'create_${parsedModel.name}(${parsedModel.fieldsRequiredToCreate.join(', ')}): ${parsedModel.name}',
@@ -109,7 +109,7 @@ type ${parsedModel.name}_page {
             // prettier-ignore
             queries.push(`
 read_${parsedModel.name}(${parsedModel.primaryKey}): ${parsedModel.name}
-read_multiple_${parsedModel.name}(offset: Int!, limit: Int!): ${parsedModel.name}_page
+read_multiple_${parsedModel.name}(offset: Int!, limit: Int!, order_column: String, order_method: String): ${parsedModel.name}_page
 `.trim());
 
             // prettier-ignore
@@ -214,9 +214,19 @@ module.exports = schema;
                 return sequelizeModel.findByPk(id);
             };
 
-            const readMultipleFunction = (_, { offset, limit }) => {
+            const readMultipleFunction = (
+                _,
+                { offset, limit, order_column, order_method }
+            ) => {
+                // Generate order options from order option
+                let orderConditions = [];
+                if (order_column && order_method) {
+                    orderConditions.push([order_column, order_method]);
+                }
+
                 return sequelizeModel.findAndCountAll({
                     where: {},
+                    order: orderConditions,
                     offset: offset,
                     limit: limit,
                 });
