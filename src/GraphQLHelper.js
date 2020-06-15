@@ -1,4 +1,5 @@
-const { GraphQLScalarType } = require('graphql');
+const { GraphQLScalarType, GraphQLInputObjectType } = require('graphql');
+const { GraphQLString, GraphQLInt } = require('graphql/type');
 const { Kind } = require('graphql/language');
 
 const SequelizeDataTypeMapper = require('./SequelizeDataTypeMapper');
@@ -73,7 +74,7 @@ const ${parsedModel.name} = {
     \`,
     query: {
         read: 'read_${parsedModel.name}(${parsedModel.primaryKey}): ${parsedModel.name}',
-        readItems: 'read_multiple_${parsedModel.name}(offset: Int!, limit: Int!, order_column: String, order_method: String): ${parsedModel.name}_page',
+        readItems: 'read_multiple_${parsedModel.name}(offset: Int!, limit: Int!, filter_options: [FilterOption], order_column: String, order_method: String): ${parsedModel.name}_page',
     },
     mutation: {
         create: 'create_${parsedModel.name}(${parsedModel.fieldsRequiredToCreate.join(', ')}): ${parsedModel.name}',
@@ -109,7 +110,7 @@ type ${parsedModel.name}_page {
             // prettier-ignore
             queries.push(`
 read_${parsedModel.name}(${parsedModel.primaryKey}): ${parsedModel.name}
-read_multiple_${parsedModel.name}(offset: Int!, limit: Int!, order_column: String, order_method: String): ${parsedModel.name}_page
+read_multiple_${parsedModel.name}(offset: Int!, limit: Int!, filter_options: [FilterOption], order_column: String, order_method: String): ${parsedModel.name}_page
 `.trim());
 
             // prettier-ignore
@@ -122,6 +123,12 @@ update_${parsedModel.name}(${parsedModel.fields.join(', ')}): ${parsedModel.name
         const schemaFileContent = `
 const schema = \`
     scalar Date
+
+    input FilterOption {
+        filterDataType: String
+        filterColumnName: String
+        filterColumnValue: String
+    }
 
     ${models.join('\n')}
 
@@ -216,8 +223,30 @@ module.exports = schema;
 
             const readMultipleFunction = (
                 _,
-                { offset, limit, order_column, order_method }
+                { offset, limit, filter_options, order_column, order_method }
             ) => {
+                // Generate where conditions from filter options
+                let whereCondition = {};
+                if (filter_options) {
+                    filter_options.forEach((filterOption) => {
+                        let {
+                            filterDataType,
+                            filterColumnName,
+                            filterColumnValue,
+                        } = filterOption;
+
+                        if (filterDataType === 'Int') {
+                            whereCondition[filterColumnName] = new Number(
+                                filterColumnValue
+                            );
+                        } else {
+                            whereCondition[
+                                filterColumnName
+                            ] = filterColumnValue;
+                        }
+                    });
+                }
+
                 // Generate order options from order option
                 let orderConditions = [];
                 if (order_column && order_method) {
@@ -225,7 +254,7 @@ module.exports = schema;
                 }
 
                 return sequelizeModel.findAndCountAll({
-                    where: {},
+                    where: whereCondition,
                     order: orderConditions,
                     offset: offset,
                     limit: limit,
@@ -292,6 +321,16 @@ module.exports = schema;
                     return null;
                 },
             }),
+
+            // FilterOption type
+            // FilterOption: new GraphQLInputObjectType({
+            //     name: 'FilterOption',
+            //     fields: {
+            //         filterDataType: { type: GraphQLString },
+            //         filterColumnName: { type: GraphQLString },
+            //         filterColumnValue: { type: GraphQLString },
+            //     },
+            // }),
 
             Query: queryDict,
             Mutation: mutationDict,
