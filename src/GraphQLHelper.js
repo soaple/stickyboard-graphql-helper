@@ -88,11 +88,12 @@ module.exports = ${parsedModel.name};
         return schemaFileContent;
     },
 
-    generateBuildSchemaFileContent: function(sequelizeModels) {
+    generateBuildSchemaFileContent: function(sequelizeModels, customSchemas) {
         let models = [];
         let queries = [];
         let mutations = [];
 
+        // Sequelize models
         sequelizeModels.forEach((sequelizeModel) => {
             const parsedModel = parseModel(sequelizeModel);
 
@@ -118,6 +119,20 @@ read_multiple_${parsedModel.name}(offset: Int!, limit: Int!, filter_options: [Fi
 create_${parsedModel.name}(${parsedModel.fieldsRequiredToCreate.join(', ')}): ${parsedModel.name}
 update_${parsedModel.name}(${parsedModel.fields.join(', ')}): ${parsedModel.name}
 `.trim());
+        });
+
+        // Custom schemas
+        customSchemas.forEach((customSchema) => {
+            // prettier-ignore
+            models.push(customSchema.model);
+
+            // prettier-ignore
+            queries.push(customSchema.query.read);
+            queries.push(customSchema.query.readItems);
+
+            // prettier-ignore
+            mutations.push(customSchema.mutation.create);
+            mutations.push(customSchema.mutation.update);
         });
 
         const schemaFileContent = `
@@ -147,11 +162,35 @@ module.exports = schema;
         return schemaFileContent;
     },
 
-    syncSchema: function(
+    sync: function(
         fs,
         path,
         graphqlBasePath,
         sequelizeModels,
+        customSchemas,
+        customResolvers
+    ) {
+        const buildSchemaFilePath = this.generateSchemas(
+            fs,
+            path,
+            graphqlBasePath,
+            sequelizeModels,
+            customSchemas,
+            { overwrite: true }
+        );
+
+        return {
+            buildSchemaFilePath: buildSchemaFilePath,
+            resolvers: this.generateResolvers(sequelizeModels, customResolvers),
+        };
+    },
+
+    generateSchemas: function(
+        fs,
+        path,
+        graphqlBasePath,
+        sequelizeModels,
+        customSchemas = [],
         options = {}
     ) {
         const schemaPath = path.resolve(graphqlBasePath, 'schemas');
@@ -186,7 +225,8 @@ module.exports = schema;
 
         // Generate buildSchema file
         const buildSchema = graphqlHelper.generateBuildSchemaFileContent(
-            sequelizeModels
+            sequelizeModels,
+            customSchemas
         );
         const buildSchemaFileName = `schema.js`;
         const buildSchemaFilePath = path.resolve(
@@ -203,10 +243,11 @@ module.exports = schema;
         return buildSchemaFilePath;
     },
 
-    generateResolvers: function(sequelizeModels) {
+    generateResolvers: function(sequelizeModels, customResolvers) {
         let queryDict = {};
         let mutationDict = {};
 
+        // Sequelize models
         sequelizeModels.forEach((sequelizeModel) => {
             const modelName = sequelizeModel.name;
 
@@ -300,6 +341,20 @@ module.exports = schema;
                 ...mutationDict,
                 [createFuncName]: createFunction,
                 [updateFuncName]: updateFunction,
+            };
+        });
+
+        // Custom resolvers
+        customResolvers.forEach((customResolver) => {
+            // Asssign Query and Mutation functions of the model
+            queryDict = {
+                ...queryDict,
+                ...customResolver.query,
+            };
+
+            mutationDict = {
+                ...mutationDict,
+                ...customResolver.mutation,
             };
         });
 
