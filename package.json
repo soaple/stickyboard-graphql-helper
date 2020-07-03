@@ -1,6 +1,6 @@
 {
     "name": "@stickyboard/graphql-helper",
-    "version": "0.2.20",
+    "version": "0.2.21",
     "description": "GraphQL backend helper for StickyBoard",
     "main": "dist/index.js",
     "scripts": {
