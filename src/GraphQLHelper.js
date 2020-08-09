@@ -178,6 +178,7 @@ module.exports = schema;
         fs,
         path,
         graphqlBasePath,
+        Sequelize,
         sequelizeModels,
         customSchemas,
         customResolvers
@@ -193,7 +194,7 @@ module.exports = schema;
 
         return {
             buildSchemaFilePath: buildSchemaFilePath,
-            resolvers: this.generateResolvers(sequelizeModels, customResolvers),
+            resolvers: this.generateResolvers(Sequelize, sequelizeModels, customResolvers),
         };
     },
 
@@ -255,7 +256,9 @@ module.exports = schema;
         return buildSchemaFilePath;
     },
 
-    generateResolvers: function(sequelizeModels, customResolvers) {
+    generateResolvers: function(Sequelize, sequelizeModels, customResolvers) {
+        const Op = Sequelize.Op;
+
         let queryDict = {};
         let mutationDict = {};
 
@@ -292,6 +295,13 @@ module.exports = schema;
                             whereCondition[filterColumnName] = new Number(
                                 filterColumnValue
                             );
+                        } else if (filterDataType === 'Date') {
+                            const dateRange = filterColumnValue.split(',');
+                            const startDate = new Number(dateRange[0]);
+                            const endDate = new Number(dateRange[1]);
+                            whereCondition[filterColumnName] = {
+                                [Op.between]: [startDate, endDate]
+                            };
                         } else {
                             whereCondition[
                                 filterColumnName
