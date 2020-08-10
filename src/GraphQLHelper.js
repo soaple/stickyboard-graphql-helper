@@ -194,7 +194,11 @@ module.exports = schema;
 
         return {
             buildSchemaFilePath: buildSchemaFilePath,
-            resolvers: this.generateResolvers(Sequelize, sequelizeModels, customResolvers),
+            resolvers: this.generateResolvers(
+                Sequelize,
+                sequelizeModels,
+                customResolvers
+            ),
         };
     },
 
@@ -265,6 +269,17 @@ module.exports = schema;
         // Sequelize models
         sequelizeModels.forEach((sequelizeModel) => {
             const modelName = sequelizeModel.name;
+            const modelAttributes = sequelizeModel.rawAttributes;
+
+            let primaryKey = 'id';
+            Object.keys(modelAttributes).forEach((attrKey) => {
+                const attrName = attrKey;
+                const attribute = modelAttributes[attrKey];
+
+                if (attribute.primaryKey) {
+                    primaryKey = attrKey;
+                }
+            });
 
             // Generate function names
             const readFuncName = `read_${modelName}`;
@@ -300,7 +315,7 @@ module.exports = schema;
                             const startDate = new Number(dateRange[0]);
                             const endDate = new Number(dateRange[1]);
                             whereCondition[filterColumnName] = {
-                                [Op.between]: [startDate, endDate]
+                                [Op.between]: [startDate, endDate],
                             };
                         } else {
                             whereCondition[
@@ -332,11 +347,11 @@ module.exports = schema;
                 return sequelizeModel
                     .update(updatedItem, {
                         where: {
-                            id: updatedItem.id,
+                            [primaryKey]: updatedItem[primaryKey],
                         },
                     })
                     .then(() => {
-                        return sequelizeModel.findByPk(updatedItem.id);
+                        return sequelizeModel.findByPk(updatedItem[primaryKey]);
                     });
             };
 
