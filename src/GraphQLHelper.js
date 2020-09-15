@@ -325,20 +325,23 @@ module.exports = schema;
                                 Sequelize.where(
                                     Sequelize.col(`${filterColumnName}`),
                                     {
-                                        [Sequelize.Op
-                                            .like]: `%${filterColumnValue}%`,
+                                        [Op.like]: `%${filterColumnValue}%`,
                                     }
                                 )
                             );
                         } else if (filterDataType === 'Date') {
+                            const [
+                                startDate,
+                                endDate,
+                            ] = filterColumnValue.split(',').map((dateTime) => {
+                                return new Date(parseInt(dateTime));
+                            });
+
                             whereConditions.push(
                                 Sequelize.where(
                                     Sequelize.col(`${filterColumnName}`),
                                     {
-                                        [Sequelize.Op.between]: [
-                                            filterColumnValue.startDate,
-                                            filterColumnValue.endDate,
-                                        ],
+                                        [Op.between]: [startDate, endDate],
                                     }
                                 )
                             );
