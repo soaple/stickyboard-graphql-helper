@@ -297,7 +297,7 @@ module.exports = schema;
                 { offset, limit, filter_options, order_column, order_method }
             ) => {
                 // Generate where conditions from filter options
-                let whereCondition = {};
+                let whereConditions = [];
                 if (filter_options) {
                     filter_options.forEach((filterOption) => {
                         let {
@@ -307,20 +307,48 @@ module.exports = schema;
                         } = filterOption;
 
                         if (filterDataType === 'Int') {
-                            whereCondition[filterColumnName] = new Number(
-                                filterColumnValue
+                            whereConditions.push(
+                                Sequelize.where(
+                                    Sequelize.col(`${filterColumnName}`),
+                                    parseInt(filterColumnValue)
+                                )
+                            );
+                        } else if (filterDataType === 'Float') {
+                            whereConditions.push(
+                                Sequelize.where(
+                                    Sequelize.col(`${filterColumnName}`),
+                                    parseFloat(filterColumnValue)
+                                )
+                            );
+                        } else if (filterDataType === 'String') {
+                            whereConditions.push(
+                                Sequelize.where(
+                                    Sequelize.col(`${filterColumnName}`),
+                                    {
+                                        [Sequelize.Op
+                                            .like]: `%${filterColumnValue}%`,
+                                    }
+                                )
                             );
                         } else if (filterDataType === 'Date') {
-                            const dateRange = filterColumnValue.split(',');
-                            const startDate = new Number(dateRange[0]);
-                            const endDate = new Number(dateRange[1]);
-                            whereCondition[filterColumnName] = {
-                                [Op.between]: [startDate, endDate],
-                            };
+                            whereConditions.push(
+                                Sequelize.where(
+                                    Sequelize.col(`${filterColumnName}`),
+                                    {
+                                        [Sequelize.Op.between]: [
+                                            filterColumnValue.startDate,
+                                            filterColumnValue.endDate,
+                                        ],
+                                    }
+                                )
+                            );
                         } else {
-                            whereCondition[
-                                filterColumnName
-                            ] = filterColumnValue;
+                            whereConditions.push(
+                                Sequelize.where(
+                                    Sequelize.col(`${filterColumnName}`),
+                                    filterColumnValue
+                                )
+                            );
                         }
                     });
                 }
@@ -332,7 +360,7 @@ module.exports = schema;
                 }
 
                 return sequelizeModel.findAndCountAll({
-                    where: whereCondition,
+                    where: whereConditions,
                     order: orderConditions,
                     offset: offset,
                     limit: limit,
