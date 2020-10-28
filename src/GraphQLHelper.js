@@ -154,6 +154,7 @@ const schema = \`
     input FilterOption {
         filterDataType: String
         filterColumnName: String
+        filterColumnKey: String
         filterColumnValue: String
     }
 
@@ -303,27 +304,32 @@ module.exports = schema;
                         let {
                             filterDataType,
                             filterColumnName,
+                            filterColumnKey,
                             filterColumnValue,
                         } = filterOption;
+
+                        const columnKey = filterColumnKey
+                            ? filterColumnKey
+                            : filterColumnName;
 
                         if (filterDataType === 'Int') {
                             whereConditions.push(
                                 Sequelize.where(
-                                    Sequelize.col(`${filterColumnName}`),
+                                    Sequelize.col(`${columnKey}`),
                                     parseInt(filterColumnValue)
                                 )
                             );
                         } else if (filterDataType === 'Float') {
                             whereConditions.push(
                                 Sequelize.where(
-                                    Sequelize.col(`${filterColumnName}`),
+                                    Sequelize.col(`${columnKey}`),
                                     parseFloat(filterColumnValue)
                                 )
                             );
                         } else if (filterDataType === 'String') {
                             whereConditions.push(
                                 Sequelize.where(
-                                    Sequelize.col(`${filterColumnName}`),
+                                    Sequelize.col(`${columnKey}`),
                                     {
                                         [Op.like]: `%${filterColumnValue}%`,
                                     }
@@ -339,7 +345,7 @@ module.exports = schema;
 
                             whereConditions.push(
                                 Sequelize.where(
-                                    Sequelize.col(`${filterColumnName}`),
+                                    Sequelize.col(`${columnKey}`),
                                     {
                                         [Op.between]: [startDate, endDate],
                                     }
@@ -348,7 +354,7 @@ module.exports = schema;
                         } else {
                             whereConditions.push(
                                 Sequelize.where(
-                                    Sequelize.col(`${filterColumnName}`),
+                                    Sequelize.col(`${columnKey}`),
                                     filterColumnValue
                                 )
                             );
