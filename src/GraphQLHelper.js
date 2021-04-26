@@ -150,6 +150,7 @@ update_${parsedModel.name}(${parsedModel.fields.join(', ')}): ${parsedModel.name
         const schemaFileContent = `
 const schema = \`
     scalar Date
+    scalar Point
 
     input FilterOption {
         filterDataType: String
@@ -328,12 +329,9 @@ module.exports = schema;
                             );
                         } else if (filterDataType === 'String') {
                             whereConditions.push(
-                                Sequelize.where(
-                                    Sequelize.col(`${columnKey}`),
-                                    {
-                                        [Op.like]: `%${filterColumnValue}%`,
-                                    }
-                                )
+                                Sequelize.where(Sequelize.col(`${columnKey}`), {
+                                    [Op.like]: `%${filterColumnValue}%`,
+                                })
                             );
                         } else if (filterDataType === 'Date') {
                             const [
@@ -344,12 +342,9 @@ module.exports = schema;
                             });
 
                             whereConditions.push(
-                                Sequelize.where(
-                                    Sequelize.col(`${columnKey}`),
-                                    {
-                                        [Op.between]: [startDate, endDate],
-                                    }
-                                )
+                                Sequelize.where(Sequelize.col(`${columnKey}`), {
+                                    [Op.between]: [startDate, endDate],
+                                })
                             );
                         } else {
                             whereConditions.push(
@@ -448,6 +443,23 @@ module.exports = schema;
                 parseLiteral(ast) {
                     if (ast.kind === Kind.INT) {
                         return new Date(ast.value); // ast value is always in string format
+                    }
+                    return null;
+                },
+            }),
+
+            Point: new GraphQLScalarType({
+                name: 'Point',
+                description: 'Point custom scalar type',
+                parseValue(value) {
+                    return JSON.parse(value); // value from the client
+                },
+                serialize(value) {
+                    return JSON.stringify(value.coordinates); // value sent to the client
+                },
+                parseLiteral(ast) {
+                    if (ast.kind === Kind.STRING) {
+                        return JSON.stringify(value); // ast value is always in string format
                     }
                     return null;
                 },

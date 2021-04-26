@@ -18,6 +18,8 @@ const SequelizeDataTypeMapper = {
     DATEONLY: 'Date',
 
     UUID: 'String',
+
+    GEOMETRY: 'Point',
 };
 
 module.exports = SequelizeDataTypeMapper;
